@@ -13,7 +13,7 @@ DEFSYM = $(subst .,_,$(BUILD))
 VERSION = "\"$(MAJOR).$(MINOR).$(BUILD)\""
 CC = gcc
 CFLAGS = -Wall -Wextra -g -Og -c -std=gnu99 
-CPPFLAGS = -DVERSION=$(VERSION) -DBUILD="\"$(BUILD)\""
+CPPFLAGS = -DVERSION=$(VERSION) -DBUILD="\"$(BUILD)\"" -DDEBUG=1
 LDLIBS = -Wl,--defsym,BUILD_$(DEFSYM)=0 -lm -lncurses
 o = breakme 
 

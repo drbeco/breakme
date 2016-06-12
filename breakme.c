@@ -61,7 +61,7 @@
 /*
  * Instrucoes para compilar:
  *   $gcc breakme.c -o breakme.x -Wall
- *        -Wextra -ansi -pedantic-errors -g -O0 -DDEBUG=1 -DVERSION="0.1.160612.142044" 
+ *        -Wextra -ansi -pedantic-errors -g -O0 -DDEBUG=1 -DVERSION="0.1.160612.142044"
  *   ou preferencialmente inclua um makefile e use:
  *   $make
  */
@@ -72,8 +72,8 @@
 #include <stdio.h> /* Standard I/O functions */
 #include <stdlib.h> /* Miscellaneous functions (rand, malloc, srand)*/
 #include <getopt.h> /* get options from system argc/argv */
+#include <time.h> /* Time and date functions */
 
-/* #include <time.h> */ /* Time and date functions */
 /* #include <math.h> */ /* Mathematics functions */
 /* #include <string.h> */ /* Strings functions definitions */
 /* #include <assert.h> */ /* Verify assumptions with assert */
@@ -123,12 +123,15 @@
 
 static int verb=0; /**< verbose level, global within the file */
 
+char groups[6][6]= {{0}}; /* 6 password groups: 0-5, 6-b, c-h, i-n, o-t and u-z (NOT A STRING! Not null terminated!) */
+
 /* ---------------------------------------------------------------------- */
 /* prototypes */
 
 void help(void); /* print some help */
 void copyr(void); /* print version and copyright information */
 void breakme_init(void); /* global initialization function */
+char *passgen(int s); /* password generator */
 
 /* ---------------------------------------------------------------------- */
 /**
@@ -166,52 +169,85 @@ void breakme_init(void); /* global initialization function */
  */
 int main(int argc, char *argv[])
 {
-  int opt; /* return from getopt() */
-  int lines=6; /* number of lines to generate */
+    int opt; /* return from getopt() */
+    int lines=6; /* number of lines to generate */
+    char *p=NULL; /* the password to crack */
 
-  breakme_init(); /* initialization function */
+    IFDEBUG("Starting optarg loop...");
 
-  IFDEBUG("Starting optarg loop...\n");
+    /* getopt() configured options:
+     *        -h      help
+     *        -V      version
+     *        -v      verbose
+     *        -s X    password size (default 6 chars)
+     *        -t X    tip size (default 6 chars)
+     *        -d X    lines of data generated
+     */
+    opterr = 0;
+    while((opt = getopt(argc, argv, "vhVd:")) != EOF)
+        switch(opt)
+        {
+        case 'h':
+            help();
+            break;
+        case 'V':
+            copyr();
+            break;
+        case 'v':
+            verb++;
+            break;
+        case 'd':
+            lines=strtoul(optarg, NULL, 10);
+        case '?':
+        default:
+            printf("Type\n\t$man %s\nor\n\t$%s -h\nfor help.\n\n", argv[0], argv[0]);
+            return EXIT_FAILURE;
+        }
 
-  /* getopt() configured options:
-   *        -h      help
-   *        -V      version
-   *        -v      verbose
-   *        -s X    password size (default 6 chars)
-   *        -t X    tip size (default 6 chars)
-   *        -d X    lines of data generated
-   */
-  opterr = 0;
-  while((opt = getopt(argc, argv, "vhVd:")) != EOF)
-    switch(opt)
-    {
-      case 'h':
-        help();
-        break;
-      case 'V':
-        copyr();
-        break;
-      case 'v':
-        verb++;
-        break;
-      case 'd':
-        lines=strtoul(optarg, NULL, 10);
-      case '?':
-      default:
-        printf("Type\n\t$man %s\nor\n\t$%s -h\nfor help.\n\n", argv[0], argv[0]);
-        return EXIT_FAILURE;
-    }
+    if(verb)
+        printf("Verbose level set at: %d\n", verb);
 
-  if(verb)
-    printf("Verbose level set at: %d\n", verb);
-  
-  /* ...and we are done */
-  /* Write your code here... */
+    breakme_init(); /* initialization function */
 
-  return EXIT_SUCCESS;
+    p=passgen(6); /* generate password with a seed */
+
+
+    return EXIT_SUCCESS;
 }
 
-/* Write your functions here... */
+/* ---------------------------------------------------------------------- */
+/**
+ * @ingroup GroupUnique
+ * @brief Generates a password to be craked
+ * @details Details to be written in
+ *
+ * @return The password 
+ *
+ * @note You can read more about it at <<a href="http://www.beco.cc">www.beco.cc</a>>
+ * @author Ruben Carlo Benante
+ * @date 2016-06-12
+ *
+ */
+char *passgen(int s)
+{
+    static char p[7]={0}; /* default to 6: remember to change */
+    int y, x, i; /* password index */
+
+    srand(s); /* the seed for a fixed "random" password */
+
+    for(i=0; i<6; i++)
+    {
+        y=rand()%6; /* from all group positions */
+        x=rand()%6; /* from all group positions */
+        p[i]=groups[y][x];
+    }
+
+    if(DEBUG) fprintf(stderr, "[DEBUG file:%s line:%d]: Generated password: %s \n", __FILE__, __LINE__, p);
+
+    srand(time(NULL)); /* now some really "pseudo-true" randomness */
+    
+    return p;
+}
 
 /* ---------------------------------------------------------------------- */
 /**
@@ -226,18 +262,18 @@ int main(int argc, char *argv[])
  */
 void help(void)
 {
-  IFDEBUG("help()");
-  printf("%s - %s\n", "breakme", "Generate password hints to break it");
-  printf("\nUsage: %s [-h|-v]\n", "breakme");
-  printf("\nOptions:\n");
-  printf("\t-h,  --help\n\t\tShow this help.\n");
-  printf("\t-V,  --version\n\t\tShow version and copyright information.\n");
-  printf("\t-v,  --verbose\n\t\tSet verbose level (cumulative).\n");
-  /* add more options here */
-  printf("\nExit status:\n\t0 if ok.\n\t1 some error occurred.\n");
-  printf("\nTodo:\n\tLong options not implemented yet.\n");
-  printf("\nAuthor:\n\tWritten by %s <%s>\n\n", "Ruben Carlo Benante", "rcb@beco.cc");
-  exit(EXIT_FAILURE);
+    IFDEBUG("help()");
+    printf("%s - %s\n", "breakme", "Generate password hints to break it");
+    printf("\nUsage: %s [-h|-v]\n", "breakme");
+    printf("\nOptions:\n");
+    printf("\t-h,  --help\n\t\tShow this help.\n");
+    printf("\t-V,  --version\n\t\tShow version and copyright information.\n");
+    printf("\t-v,  --verbose\n\t\tSet verbose level (cumulative).\n");
+    /* add more options here */
+    printf("\nExit status:\n\t0 if ok.\n\t1 some error occurred.\n");
+    printf("\nTodo:\n\tLong options not implemented yet.\n");
+    printf("\nAuthor:\n\tWritten by %s <%s>\n\n", "Ruben Carlo Benante", "rcb@beco.cc");
+    exit(EXIT_FAILURE);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -253,11 +289,11 @@ void help(void)
  */
 void copyr(void)
 {
-  IFDEBUG("copyr()");
-  printf("%s - Version %s\n", "breakme", VERSION);
-  printf("\nCopyright (C) %d %s <%s>, GNU GPL version 2 <http://gnu.org/licenses/gpl.html>. This  is  free  software: you are free to change and redistribute it. There is NO WARRANTY, to the extent permitted by law. USE IT AS IT IS. The author takes no responsability to any damage this software may inflige in your data.\n\n", 2016, "Ruben Carlo Benante", "rcb@beco.cc");
-  if(verb>3) printf("copyr(): Verbose: %d\n", verb); /* -vvvv */
-  exit(EXIT_FAILURE);
+    IFDEBUG("copyr()");
+    printf("%s - Version %s\n", "breakme", VERSION);
+    printf("\nCopyright (C) %d %s <%s>, GNU GPL version 2 <http://gnu.org/licenses/gpl.html>. This  is  free  software: you are free to change and redistribute it. There is NO WARRANTY, to the extent permitted by law. USE IT AS IT IS. The author takes no responsability to any damage this software may inflige in your data.\n\n", 2016, "Ruben Carlo Benante", "rcb@beco.cc");
+    if(verb>3) printf("copyr(): Verbose: %d\n", verb); /* -vvvv */
+    exit(EXIT_FAILURE);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -267,49 +303,38 @@ void copyr(void)
  * @details Details to be written in
  * multiple lines
  *
- * @pre You need to call foo() before calling this function
- *
- * @param[in] i Input parameter that does bla
- * @param[out] o Parameter that outputs ble
- * @param[in,out] z The @a z variable is used as input and output
- *
- * @retval 0 Returned when bli
- * @retval 1 Error code: function returned blo
- *
- * @par Example
- * @code
- *    if(x==funcexample(i, o, z))
- *       printf("And that is it\n");
- * @endcode
- *
  * @return Void
  *
- * @warning Be carefull with blu
- * @todo Need to implement it. Its empty now. This doxygen tags are overwhelming.
- * Mandatory tags are: ingroup, brief, details, param, return, author and date.
- * The others are optional.
- * 
- * @deprecated This function will be deactivated in version +11
- * @see help()
- * @see copyr()
- * @bug There is a bug with x greater than y
  * @note You can read more about it at <<a href="http://www.beco.cc">www.beco.cc</a>>
- *
  * @author Ruben Carlo Benante
- * @version 20160612.152232
  * @date 2016-06-12
- * @copyright Use this tag only if not the same as the whole file
  *
  */
 void breakme_init(void)
 {
-  IFDEBUG("breakme_init()");
-  /* initialization */
-  return;
+    IFDEBUG("breakme_init()");
+
+    int l, c;
+    char r='0';
+
+    /* initialization */
+
+    for(l=0; l<6; l++)
+        for(c=0; c<6; c++)
+        {
+            groups[l][c]=r;
+            if(r == '9')
+                r='a';
+            else
+                r++;
+        }
+
+    return;
 }
 
 /* ---------------------------------------------------------------------- */
 /* vi: set ai et ts=4 sw=4 tw=0 wm=0 fo=croql : C config for Vim modeline */
 /* Template by Dr. Beco <rcb at beco dot cc> Version 20160612.142044      */
+
 
 
