@@ -123,7 +123,7 @@
 
 static int verb=0; /**< verbose level, global within the file */
 
-char groups[6][6]= {{0}}; /* 6 password groups: 0-5, 6-b, c-h, i-n, o-t and u-z (NOT A STRING! Not null terminated!) */
+char groups[6][6]={{0}}; /* 6 password groups: 0-5, 6-b, c-h, i-n, o-t and u-z (NOT A STRING! Not null terminated!) */
 
 /* ---------------------------------------------------------------------- */
 /* prototypes */
@@ -132,6 +132,8 @@ void help(void); /* print some help */
 void copyr(void); /* print version and copyright information */
 void breakme_init(void); /* global initialization function */
 char *passgen(int s); /* password generator */
+void tipgen(char *p); /* tip generator */
+int thisgroup(char c); /* return the group number for a char */
 
 /* ---------------------------------------------------------------------- */
 /**
@@ -172,6 +174,7 @@ int main(int argc, char *argv[])
     int opt; /* return from getopt() */
     int lines=6; /* number of lines to generate */
     char *p=NULL; /* the password to crack */
+    int i;
 
     IFDEBUG("Starting optarg loop...");
 
@@ -211,8 +214,81 @@ int main(int argc, char *argv[])
 
     p=passgen(6); /* generate password with a seed */
 
+    for(i=0; i<lines; i++)
+        tipgen(p);
 
     return EXIT_SUCCESS;
+}
+
+/* ---------------------------------------------------------------------- */
+/**
+ * @ingroup GroupUnique
+ * @brief Generates a password to be craked
+ * @details Details to be written in
+ *
+ * @return The password 
+ *
+ * @note You can read more about it at <<a href="http://www.beco.cc">www.beco.cc</a>>
+ * @author Ruben Carlo Benante
+ * @date 2016-06-12
+ *
+ */
+void tipgen(char *p)
+{
+    int i, gj, gr, gc, lr;
+    int gja[6]={0}; /* password groups already drawn */
+    int gqt=6; /* how many groups left */
+    int pg; /* the group of the current password letter */
+    int cl; /* current letter */
+
+    for(cl=0; cl<6; cl++) /* password letter */
+    {
+        /* printf("Letter %d tips: ", cl); */
+        pg=thisgroup(p[cl]);
+        gqt=6;
+        for(i=0; i<6; i++) /* zeroes again */
+            gja[i]=0;
+        for(i=0; i<6; i++) /* tip size */
+        {
+            gr=rand()%gqt+1; /* a group position (first to last) */
+            gc=0;
+            gj=0; /* the next group to give a letter */
+            while(1)
+            {
+                if(!gja[gj])
+                {
+                    gc++;
+                    if(gc==gr)
+                        break;
+                }
+                gj++;
+            }
+            gqt--;
+            gja[gj]=1;
+            /* printf(" g%d:", gj); */
+            if(gj==pg) /* the current letter group */
+            {
+                printf("%c", p[cl]);
+                continue;
+            }
+            lr=rand()%6; /* a letter from this group */
+            printf("%c", groups[gj][lr]);
+        }
+        printf(" ");
+    }
+    printf("\n");
+}
+
+/* return the group number for a char */
+int thisgroup(char x)
+{
+    int l, c;
+
+    for(l=0; l<6; l++)
+        for(c=0; c<6; c++)
+            if(x==groups[l][c])
+                return l;
+    return -1;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -244,7 +320,8 @@ char *passgen(int s)
 
     if(DEBUG) fprintf(stderr, "[DEBUG file:%s line:%d]: Generated password: %s \n", __FILE__, __LINE__, p);
 
-    srand(time(NULL)); /* now some really "pseudo-true" randomness */
+    if(!DEBUG) 
+        srand(time(NULL)); /* now some really "pseudo-true" randomness */
     
     return p;
 }
