@@ -201,6 +201,7 @@ int main(int argc, char *argv[])
             break;
         case 'd':
             lines=strtoul(optarg, NULL, 10);
+            break;
         case '?':
         default:
             printf("Type\n\t$man %s\nor\n\t$%s -h\nfor help.\n\n", argv[0], argv[0]);
