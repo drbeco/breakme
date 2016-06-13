@@ -122,10 +122,9 @@
 /* globals */
 
 static int verb=0; /**< verbose level, global within the file */
-
 char groups[6][6]={{0}}; /* 6 password groups: 0-5, 6-b, c-h, i-n, o-t and u-z (NOT A STRING! Not null terminated!) */
-
 const char alf[36]="0123456789abcdefghijklmnopqrstuvwxyz";
+unsigned int seed;
 
 /* ---------------------------------------------------------------------- */
 /* prototypes */
@@ -138,6 +137,7 @@ void tipgen(char *p, int g, int t); /* tip generator */
 void tipgen_groups(char *p); /* tip generator by groups */
 int thisgroup(char c); /* return the group number for a char */
 char lettergroup(char *p, int gpl, int lp, int gi, int li); /* return a letter from group gi, position li */
+int valemenu(char *s, int x, char p, char c);
 
 /* ---------------------------------------------------------------------- */
 /**
@@ -253,8 +253,8 @@ void tipgen(char *p, int gpl, int lp)
     /* int gpl = 3; / * groups per password letter */
     /* int lp = 2; / * letters per group */
     int gi, li; /* generate group gi, letter li */
-    int pi, pa; /* password index */
-
+    int in, pi, pa; /* password index */
+    
     int gp; /* total groups */
     int t; /* password size */
 
@@ -274,7 +274,6 @@ void tipgen(char *p, int gpl, int lp)
             printf(", ");
             pa=pi;
         }
-        /* printf("G%02d: ", gi); */
         for(li = 0; li < lp; li++)
         {
             cl=lettergroup(p, gpl, lp, gi, li);
@@ -283,11 +282,35 @@ void tipgen(char *p, int gpl, int lp)
         printf(" ");
     }
     printf("\n");
-    pi=rand()%gpl+1;
 
+    /* laco de dicas de senha */
+    pa = 0;
+    pi = 0;
+    in = rand()%(gpl+1)+(pi*gpl);
+    for(gi = 0; gi < gp; gi++)
+    {
+        pi = gi/gpl;
+        if(pi != pa)
+        {
+            if(in != -1)
+                printf("%c", p[pa]);
+            printf(", ");
+            pa = pi;
+            in = rand()%(gpl+1)+(pi*gpl);
+        }
+        if(gi == in)
+        {
+            printf("%c", p[pa]);
+            in = -1;
+        }
+        li = rand()%lp;
+        cl = lettergroup(p, gpl, lp, gi, li);
+        printf("%c", cl);
+    }
+    if(in != -1)
+        printf("%c", p[pa]);
+    printf("\n");
 
-        if(gi==pi)
-            printf("%c", p[0]);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -376,11 +399,17 @@ char lettergroup(char *p, int gpl, int lp, int gi, int li)
     int i, g, l, c;
     int magic_seed;
     int t; /* password size */
+    int menux=gpl*lp+1;
+    char smenu[menux];
+    int mi; /* menu index */
+    int pi, pa; /* index current and previous */
+    static int letterseed=0;
 
     t=strlen(p);
     gp=t*gpl;
 
-    magic_seed=gpl+lp+gi+li+t+gp;
+    letterseed++;
+    magic_seed=gpl+lp+t+gp+letterseed+seed;
 
     assert(gpl>0 && gpl<7);
     assert(t>0);
@@ -394,20 +423,53 @@ char lettergroup(char *p, int gpl, int lp, int gi, int li)
 
     srand(magic_seed);
 
+    pi=pa=0;
+    for(mi=0; mi<menux; mi++)
+        smenu[mi]='\0';
+    mi=0;
     for(g=0; g<=gi; g++)
     {
-        i=g/gpl;
-        for(l=0; l<=li; l++)
+        pi = g/gpl;
+        if(pi != pa)
+        {
+            pa = pi;
+            /* new password letter (menu) */
+            for(mi=0; mi<menux; mi++)
+                smenu[mi]='\0';
+            mi=0;
+        }
+
+        for(l=0; l<lp; l++)
         {
             c = rand()%36;
-            if(alf[c] == p[i])
-                c=(++c==37?0:c);
+            while(!valemenu(smenu, menux, p[pi], alf[c]))
+                c = (++c == 37? 0 : c);
+            if(g == gi && l == li)
+                break;
+            smenu[mi]=alf[c];
+            mi++;
         }
+        if(g == gi && l == li)
+            break;
     }
     return alf[c];
 } 
 
-    
+/* valida sorteio */
+int valemenu(char *s, int x, char p, char c)
+{
+    int i;
+    if(c==p)
+        return 0;
+    for(i=0; i<x; i++)
+    {
+        if(s[i]=='\0')
+            break;
+        if(c==s[i])
+            return 0;
+    }
+    return 1;
+}
 
 
 /* ---------------------------------------------------------------------- */
@@ -439,9 +501,6 @@ char *passgen(int s)
 
     if(DEBUG) fprintf(stderr, "[DEBUG file:%s line:%d]: Generated password: %s \n", __FILE__, __LINE__, p);
 
-    if(!DEBUG) 
-        srand(time(NULL)); /* now some really "pseudo-true" randomness */
-    
     return p;
 }
 
@@ -525,6 +584,7 @@ void breakme_init(void)
                 r++;
         }
 
+    seed=(unsigned int)time(NULL);
     return;
 }
 
