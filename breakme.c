@@ -73,10 +73,10 @@
 #include <stdlib.h> /* Miscellaneous functions (rand, malloc, srand)*/
 #include <getopt.h> /* get options from system argc/argv */
 #include <time.h> /* Time and date functions */
+#include <assert.h> /* Verify assumptions with assert */
+#include <string.h> /* Strings functions definitions */
 
 /* #include <math.h> */ /* Mathematics functions */
-/* #include <string.h> */ /* Strings functions definitions */
-/* #include <assert.h> */ /* Verify assumptions with assert */
 /* #include <dlfcn.h> */ /* Dynamic library */
 /* #include <malloc.h> */ /* Dynamic memory allocation */
 /* #include <unistd.h> */ /* UNIX standard function */
@@ -125,6 +125,8 @@ static int verb=0; /**< verbose level, global within the file */
 
 char groups[6][6]={{0}}; /* 6 password groups: 0-5, 6-b, c-h, i-n, o-t and u-z (NOT A STRING! Not null terminated!) */
 
+const char alf[36]="0123456789abcdefghijklmnopqrstuvwxyz";
+
 /* ---------------------------------------------------------------------- */
 /* prototypes */
 
@@ -132,8 +134,10 @@ void help(void); /* print some help */
 void copyr(void); /* print version and copyright information */
 void breakme_init(void); /* global initialization function */
 char *passgen(int s); /* password generator */
-void tipgen(char *p); /* tip generator */
+void tipgen(char *p, int g, int t); /* tip generator */
+void tipgen_groups(char *p); /* tip generator by groups */
 int thisgroup(char c); /* return the group number for a char */
+char lettergroup(char *p, int gpl, int lp, int gi, int li); /* return a letter from group gi, position li */
 
 /* ---------------------------------------------------------------------- */
 /**
@@ -173,6 +177,8 @@ int main(int argc, char *argv[])
 {
     int opt; /* return from getopt() */
     int lines=6; /* number of lines to generate */
+    int tips=6; /* number of letters in each group */
+    int grps=6; /* groups per password letter */
     char *p=NULL; /* the password to crack */
     int i;
 
@@ -183,11 +189,12 @@ int main(int argc, char *argv[])
      *        -V      version
      *        -v      verbose
      *        -s X    password size (default 6 chars)
-     *        -t X    tip size (default 6 chars)
+     *        -t X    tip size (default 6 chars per group)
      *        -d X    lines of data generated
+     *        -g X    groups per password letter
      */
     opterr = 0;
-    while((opt = getopt(argc, argv, "vhVd:")) != EOF)
+    while((opt = getopt(argc, argv, "vhVd:t:g:")) != EOF)
         switch(opt)
         {
         case 'h':
@@ -201,6 +208,12 @@ int main(int argc, char *argv[])
             break;
         case 'd':
             lines=strtoul(optarg, NULL, 10);
+            break;
+        case 't':
+            tips=strtoul(optarg, NULL, 10);
+            break;
+        case 'g':
+            grps=strtoul(optarg, NULL, 10);
             break;
         case '?':
         default:
@@ -216,7 +229,7 @@ int main(int argc, char *argv[])
     p=passgen(6); /* generate password with a seed */
 
     for(i=0; i<lines; i++)
-        tipgen(p);
+        tipgen(p, grps, tips);
 
     return EXIT_SUCCESS;
 }
@@ -234,7 +247,64 @@ int main(int argc, char *argv[])
  * @date 2016-06-12
  *
  */
-void tipgen(char *p)
+void tipgen(char *p, int gpl, int lp)
+{
+    int cl; /* current letter */
+    /* int gpl = 3; / * groups per password letter */
+    /* int lp = 2; / * letters per group */
+    int gi, li; /* generate group gi, letter li */
+    int pi, pa; /* password index */
+
+    int gp; /* total groups */
+    int t; /* password size */
+
+    t = strlen(p);
+    gp = t * gpl; /* total of groups */
+
+    /* char lettergroup(char *p, int gpl, int lp, int gi, int li)*/
+
+    /* laco de debug: imprime tudo */
+    pa=0;
+    pi=0;
+    for(gi = 0; gi < gp; gi++)
+    {
+        pi=gi/gpl;
+        if(pi!=pa)
+        {
+            printf(", ");
+            pa=pi;
+        }
+        /* printf("G%02d: ", gi); */
+        for(li = 0; li < lp; li++)
+        {
+            cl=lettergroup(p, gpl, lp, gi, li);
+            printf("%c", cl);
+        }
+        printf(" ");
+    }
+    printf("\n");
+    pi=rand()%gpl+1;
+
+
+        if(gi==pi)
+            printf("%c", p[0]);
+}
+
+/* ---------------------------------------------------------------------- */
+/**
+ * @ingroup GroupUnique
+ * @brief Generates a password to be craked
+ * @details Details to be written in
+ *
+ * @return The password 
+ *
+ * @note You can read more about it at <<a href="http://www.beco.cc">www.beco.cc</a>>
+ * @author Ruben Carlo Benante
+ * @date 2016-06-12
+ *
+ */
+/* void tipgen(char *p)*/
+void tipgen_groups(char *p)
 {
     int i, gj, gr, gc, lr;
     int gja[6]={0}; /* password groups already drawn */
@@ -291,6 +361,54 @@ int thisgroup(char x)
                 return l;
     return -1;
 }
+
+/* given
+ *  - p: password
+ *  - gpl: number of groups per letter
+ *  - lp: number of letters per group
+ *  - gi: group
+ *  - li: letter
+ * return the letter li of group gi
+ */
+char lettergroup(char *p, int gpl, int lp, int gi, int li)
+{
+    int gp; /* number of groups */
+    int i, g, l, c;
+    int magic_seed;
+    int t; /* password size */
+
+    t=strlen(p);
+    gp=t*gpl;
+
+    magic_seed=gpl+lp+gi+li+t+gp;
+
+    assert(gpl>0 && gpl<7);
+    assert(t>0);
+    assert(gp>=t);
+    assert(lp>=2);
+    assert(gi>=0 && gi<gp);
+    assert(li>=0 && li<lp);
+
+    for(i=0; i<t; i++)
+        magic_seed += p[i];
+
+    srand(magic_seed);
+
+    for(g=0; g<=gi; g++)
+    {
+        i=g/gpl;
+        for(l=0; l<=li; l++)
+        {
+            c = rand()%36;
+            if(alf[c] == p[i])
+                c=(++c==37?0:c);
+        }
+    }
+    return alf[c];
+} 
+
+    
+
 
 /* ---------------------------------------------------------------------- */
 /**
